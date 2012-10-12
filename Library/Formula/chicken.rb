@@ -1,14 +1,15 @@
 require 'formula'
 
-class Chicken <Formula
-  url 'http://code.call-cc.org/releases/4.6.0/chicken-4.6.0.tar.gz'
-  md5 '538a93e786e550ad848a040bcd902184'
+class Chicken < Formula
+  url 'http://code.call-cc.org/releases/4.8.0/chicken-4.8.0.tar.gz'
+  sha1 '5068929f02d8a4fcb8fde13e4ddefb0bcb7142a6'
   homepage 'http://www.call-cc.org/'
+  head 'git://code.call-cc.org/chicken-core'
 
   def install
     ENV.deparallelize
-    args = ["PREFIX=#{prefix}", "PLATFORM=macosx"]
-    args << "ARCH=x86-64" if snow_leopard_64?
+    args = ["PREFIX=#{prefix}", "PLATFORM=macosx", "C_COMPILER=#{ENV.cc}"] # Chicken uses a non-standard var. for this
+    args << "ARCH=x86-64" if MacOS.prefer_64_bit?
     system "make", *args
     system "make", "install", *args
   end

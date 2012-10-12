@@ -1,154 +1,273 @@
 require 'formula'
 
-<<-COMMENTS
-Versions
---------
-This formula is currently tracking version 2.7.x.
+class TkCheck < Requirement
+  def message; <<-EOS.undent
+    Tk.framework was detected in /Library/Frameworks
+    This can cause Python builds to fail. See:
+      https://github.com/mxcl/homebrew/issues/11602
+    EOS
+  end
 
-Python 3.x is available as a separate formula:
-  brew install python3
+  def fatal?; false; end
 
-Options
--------
-There are a few options for customzing the build.
-  --universal: Builds combined 32-/64-bit Intel binaries.
-  --framework: Builds a "Framework" version of Python.
-  --static:    Builds static instead of shared libraries.
-
-site-packages
--------------
-The "site-packages" folder lives in the Cellar, under the "lib" folder
-for normal builds, and under the "Frameworks" folder for Framework builds.
-
-A .pth file is added to the Cellar site-packages that adds the corresponding
-HOMEBREW_PREFIX folder (/usr/local/lib/python2.7/site-packages by default)
-to sys.path. Note that this alternate folder doesn't itself support .pth files.
-
-pip / distribute
-----------------
-The pip (and distribute) formulae in Homebrew are designed only to work
-against a Homebrew-installed Python, though they provide links for
-manually installing against a custom Python.
-
-pip and distribute are installed directly into the Cellar site-packages,
-since they need to install to a place that supports .pth files.
-
-The pip & distribute formuale use the "site_packages" method defined here
-to get the appropriate site-packages path.
-
-COMMENTS
-
-
-# Was a Framework build requested?
-def build_framework?; ARGV.include? '--framework'; end
-
-# Are we installed or installing as a Framework?
-def as_framework?
-  (self.installed? and File.exists? prefix+"Frameworks/Python.framework") or build_framework?
+  def satisfied?
+    not File.exist? '/Library/Frameworks/Tk.framework'
+  end
 end
 
-class Python <Formula
-  url 'http://www.python.org/ftp/python/2.7/Python-2.7.tar.bz2'
-  homepage 'http://www.python.org/'
-  md5 '0e8c9ec32abf5b732bea7d91b38c3339'
+class Distribute < Formula
+  url 'http://pypi.python.org/packages/source/d/distribute/distribute-0.6.28.tar.gz'
+  sha1 '709bd97d46050d69865d4b588c7707768dfe6711'
+end
 
-  depends_on 'readline' => :optional  # Prefer over OS X's libedit
-  depends_on 'sqlite'   => :optional  # Prefer over OS X's older version
-  depends_on 'gdbm'     => :optional
+class Pip < Formula
+  url 'http://pypi.python.org/packages/source/p/pip/pip-1.2.1.tar.gz'
+  sha1 '35db84983ef3f66a8a161d320e61d192afc233d9'
+end
 
-  def options
-    [
-      ["--framework", "Do a 'Framework' build instead of a UNIX-style build."],
-      ["--universal", "Build for both 32 & 64 bit Intel."],
-      ["--static", "Build static libraries."]
-    ]
+class Python < Formula
+  homepage 'http://www.python.org'
+  url 'http://www.python.org/ftp/python/2.7.3/Python-2.7.3.tar.bz2'
+  sha1 '842c4e2aff3f016feea3c6e992c7fa96e49c9aa0'
+
+  depends_on TkCheck.new
+  depends_on 'pkg-config' => :build
+  depends_on 'readline' => :recommended
+  depends_on 'sqlite' => :recommended
+  depends_on 'gdbm' => :recommended
+  depends_on 'openssl' if build.include? 'with-brewed-openssl'
+
+  option :universal
+  option 'quicktest', 'Run `make quicktest` after the build'
+  option 'with-brewed-openssl', "Use Homebrew's openSSL instead of the one from OS X"
+  option 'with-poll', 'Enable select.poll, which is not fully implemented on OS X (http://bugs.python.org/issue5154)'
+
+  # --with-dtrace relies on CLT as dtrace hard-codes paths to /usr
+  # http://bugs.python.org/issue13405
+  option 'with-dtrace', 'Install with DTrace support' if MacOS::CLT.installed?
+
+  def patches
+    'https://raw.github.com/gist/3415636/2365dea8dc5415daa0148e98c394345e1191e4aa/pythondtrace-patch.diff'
+  end if build.include? 'with-dtrace'
+
+  def site_packages_cellar
+    prefix/"Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages"
   end
 
-  # Skip binaries so modules will load; skip lib because it is mostly Python files
-  skip_clean ['bin', 'lib']
-
+  # The HOMEBREW_PREFIX location of site-packages.
   def site_packages
-    # The Cellar location of site-packages
-    if as_framework?
-      # If we're installed or installing as a Framework, then use that location.
-      return prefix+"Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages"
-    else
-      # Otherwise, use just the lib path.
-      return lib+"python2.7/site-packages"
-    end
+    HOMEBREW_PREFIX/"lib/python2.7/site-packages"
   end
 
-  def prefix_site_packages
-    # The HOMEBREW_PREFIX location of site-packages
-    HOMEBREW_PREFIX+"lib/python2.7/site-packages"
-  end
-
-  def validate_options
-    if build_framework? and ARGV.include? "--static"
-      onoe "Cannot specify both framework and static."
-      exit 99
-    end
+  # Where distribute/pip will install executable scripts.
+  def scripts_folder
+    HOMEBREW_PREFIX/"share/python"
   end
 
   def install
-    validate_options
+    opoo 'The given option --with-poll enables a somewhat broken poll() on OS X (http://bugs.python.org/issue5154).' if build.include? 'with-poll'
 
-    args = ["--prefix=#{prefix}"]
+    # Unset these so that installing pip and distribute puts them where we want
+    # and not into some other Python the user has installed.
+    ENV['PYTHONPATH'] = nil
+    ENV['PYTHONHOME'] = nil
 
-    if ARGV.include? '--universal'
+    args = %W[
+             --prefix=#{prefix}
+             --enable-ipv6
+             --datarootdir=#{share}
+             --datadir=#{share}
+             --enable-framework=#{prefix}/Frameworks
+           ]
+
+    args << '--without-gcc' if ENV.compiler == :clang
+    args << '--with-dtrace' if build.include? 'with-dtrace'
+
+    distutils_fix_superenv(args)
+    distutils_fix_stdenv
+
+    if build.universal?
+      ENV.universal_binary
       args << "--enable-universalsdk=/" << "--with-universal-archs=intel"
     end
 
-    if build_framework?
-      args << "--enable-framework=#{prefix}/Frameworks"
-    else
-      args << "--enable-shared" unless ARGV.include? '--static'
-    end
+    # Allow sqlite3 module to load extensions: http://docs.python.org/library/sqlite3.html#f1
+    inreplace "setup.py", 'sqlite_defines.append(("SQLITE_OMIT_LOAD_EXTENSION", "1"))', ''
 
     system "./configure", *args
-    system "make"
-    ENV.j1 # Installs must be serialized
-    system "make install"
 
-    # Add the Homebrew prefix path to site-packages via a .pth
-    prefix_site_packages.mkpath
-    (site_packages+"homebrew.pth").write prefix_site_packages
+    # HAVE_POLL is "broken" on OS X
+    # See: http://trac.macports.org/ticket/18376 and http://bugs.python.org/issue5154
+    inreplace 'pyconfig.h', /.*?(HAVE_POLL[_A-Z]*).*/, '#undef \1' unless build.include? "with-poll"
+
+    system "make"
+
+    ENV.deparallelize # Installs must be serialized
+    # Tell Python not to install into /Applications (default for framework builds)
+    system "make", "install", "PYTHONAPPSDIR=#{prefix}"
+    # Demos and Tools
+    (HOMEBREW_PREFIX/'share/python').mkpath
+    system "make", "frameworkinstallextras", "PYTHONAPPSDIR=#{share}/python"
+    system "make", "quicktest" if build.include? 'quicktest'
+
+    # Post-install, fix up the site-packages and install-scripts folders
+    # so that user-installed Python software survives minor updates, such
+    # as going from 2.7.0 to 2.7.1:
+
+    # Remove the site-packages that Python created in its Cellar.
+    site_packages_cellar.rmtree
+    # Create a site-packages in HOMEBREW_PREFIX/lib/python/site-packages
+    site_packages.mkpath
+    # Symlink the prefix site-packages into the cellar.
+    ln_s site_packages, site_packages_cellar
+
+    # Teach python not to use things from /System
+    # and tell it about the correct site-package dir because we moved it
+    sitecustomize = site_packages_cellar/"sitecustomize.py"
+    rm sitecustomize if File.exist? sitecustomize
+    sitecustomize.write <<-EOF.undent
+      # This file is created by `brew install python` and is executed on each
+      # python startup. Don't print from here, or else universe will collapse.
+      import sys
+      import site
+
+      # Only do fix 1 and 2, if the currently run python is a brewed one.
+      if sys.executable.startswith('#{HOMEBREW_PREFIX}'):
+          # Fix 1)
+          #   A setuptools.pth and/or easy-install.pth sitting either in
+          #   /Library/Python/2.7/site-packages or in
+          #   ~/Library/Python/2.7/site-packages can inject the
+          #   /System's Python site-packages. People then report
+          #   "OSError: [Errno 13] Permission denied" because pip/easy_install
+          #   attempts to install into
+          #   /System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python
+          #   See: https://github.com/mxcl/homebrew/issues/14712
+          sys.path = [ p for p in sys.path if not p.startswith('/System') ]
+
+          # Fix 2)
+          #   Remove brewed Python's hard-coded site-packages
+          sys.path.remove('#{site_packages_cellar}')
+
+      # Fix 3)
+      #   For all Pythons: Tell about homebrew's site-packages location.
+      #   This is needed for Python to parse *.pth files.
+      site.addsitedir('#{site_packages}')
+    EOF
+
+    # Install distribute and pip
+    # It's important to have these installers in our bin, because some users
+    # forget to put #{script_folder} in PATH, then easy_install'ing
+    # into /Library/Python/X.Y/site-packages with /usr/bin/easy_install.
+    mkdir_p scripts_folder unless scripts_folder.exist?
+    setup_args = ["-s", "setup.py", "--no-user-cfg", "install", "--force", "--verbose", "--install-lib=#{site_packages_cellar}", "--install-scripts=#{bin}" ]
+    Distribute.new.brew { system "#{bin}/python", *setup_args }
+    Pip.new.brew { system "#{bin}/python", *setup_args }
+
+    # Tell distutils-based installers where to put scripts and python modules
+    (prefix/"Frameworks/Python.framework/Versions/2.7/lib/python2.7/distutils/distutils.cfg").write <<-EOF.undent
+      [install]
+      install-scripts=#{scripts_folder}
+      install-lib=#{site_packages}
+    EOF
+
+    unless MacOS::CLT.installed?
+      makefile = prefix/'Frameworks/Python.framework/Versions/2.7/lib/python2.7/config/Makefile'
+      inreplace makefile do |s|
+        s.gsub!(/^CC=.*$/, "CC=xcrun clang")
+        s.gsub!(/^CXX=.*$/, "CXX=xcrun clang++")
+        s.gsub!(/^AR=.*$/, "AR=xcrun ar")
+        s.gsub!(/^RANLIB=.*$/, "RANLIB=xcrun ranlib")
+      end
+    end
+
+  end
+
+  def distutils_fix_superenv(args)
+    if superenv?
+      # To allow certain Python bindings to find brewed software:
+      cflags = "CFLAGS=-I#{HOMEBREW_PREFIX}/include"
+      ldflags = "LDFLAGS=-L#{HOMEBREW_PREFIX}/lib"
+      unless MacOS::CLT.installed?
+        # Help Python's build system (distribute/pip) to build things on Xcode-only systems
+        # The setup.py looks at "-isysroot" to get the sysroot (and not at --sysroot)
+        cflags += " -isysroot #{MacOS.sdk_path}"
+        # For the Xlib.h, Python needs this header dir
+        cflags += " -I#{MacOS.sdk_path}/System/Library/Frameworks/Tk.framework/Versions/8.5/Headers"
+        ldflags += " -isysroot #{MacOS.sdk_path}"
+        # Same zlib.h-not-found-bug as in env :std (see below)
+        args << "CPPFLAGS=-I#{MacOS.sdk_path}/usr/include"
+      end
+      args << cflags
+      args << ldflags
+      # Avoid linking to libgcc http://code.activestate.com/lists/python-dev/112195/
+      args << "MACOSX_DEPLOYMENT_TARGET=#{MacOS.version}"
+      # We want our readline! This is just to outsmart the detection code,
+      # superenv handles that cc finds includes/libs!
+      inreplace "setup.py",
+                "do_readline = self.compiler.find_library_file(lib_dirs, 'readline')",
+                "do_readline = '#{HOMEBREW_PREFIX}/opt/readline/lib/libhistory.dylib'"
+    end
+  end
+
+  def distutils_fix_stdenv()
+    if not superenv?
+      # Python scans all "-I" dirs but not "-isysroot", so we add
+      # the needed includes with "-I" here to avoid this err:
+      #     building dbm using ndbm
+      #     error: /usr/include/zlib.h: No such file or directory
+      ENV.append 'CPPFLAGS', "-I#{MacOS.sdk_path}/usr/include" unless MacOS::CLT.installed?
+
+      # Don't use optimizations other than "-Os" here, because Python's distutils
+      # remembers (hint: `python3-config --cflags`) and reuses them for C
+      # extensions which can break software (such as scipy 0.11 fails when
+      # "-msse4" is present.)
+      ENV.minimal_optimization
+
+      # We need to enable warnings because the configure.in uses -Werror to detect
+      # "whether gcc supports ParseTuple" (https://github.com/mxcl/homebrew/issues/12194)
+      ENV.enable_warnings
+      if ENV.compiler == :clang
+        # http://docs.python.org/devguide/setup.html#id8 suggests to disable some Warnings.
+        ENV.append_to_cflags '-Wno-unused-value'
+        ENV.append_to_cflags '-Wno-empty-body'
+        ENV.append_to_cflags '-Qunused-arguments'
+      end
+    end
   end
 
   def caveats
-    framework_caveats = <<-EOS.undent
-      Framework Python was installed to:
+    <<-EOS.undent
+      Homebrew's Python framework
         #{prefix}/Frameworks/Python.framework
 
-      You may want to symlink this Framework to a standard OS X location,
-      such as:
-        mkdir ~/Frameworks
-        ln -s "#{prefix}/Frameworks/Python.framework" ~/Frameworks
+      Python demo
+        #{HOMEBREW_PREFIX}/share/python/Extras
 
-    EOS
+      Distribute and Pip have been installed. To update them
+        pip install --upgrade distribute
+        pip install --upgrade pip
 
-    site_caveats = <<-EOS.undent
-      The site-packages folder for this Python is:
+      To symlink "Idle" and the "Python Launcher" to ~/Applications
+        `brew linkapps`
+
+      You can install Python packages with (the outdated easy_install or)
+        `pip install <your_favorite_package>`
+
+      They will install into the site-package directory
         #{site_packages}
+      Executable python scripts will be put in:
+        #{scripts_folder}
+      so you may want to put "#{scripts_folder}" in your PATH, too.
 
-      We've added a "homebrew.pth" file to also include:
-        #{prefix_site_packages}
-
+      See: https://github.com/mxcl/homebrew/wiki/Homebrew-and-Python
     EOS
+  end
 
-    general_caveats = <<-EOS.undent
-      You may want to create a "virtual environment" using this Python as a base
-      so you can manage multiple independent site-packages. See:
-        http://pypi.python.org/pypi/virtualenv
-
-      If you install Python packages via pip, binaries will be installed under
-      Python's cellar but not automatically linked into the Homebrew prefix.
-      You may want to add Python's bin folder to your PATH as well:
-        #{bin}
-    EOS
-
-    s = site_caveats+general_caveats
-    s = framework_caveats + s if as_framework?
-    return s
+  def test
+    # Check if sqlite is ok, because we build with --enable-loadable-sqlite-extensions
+    # and it can occur that building sqlite silently fails if OSX's sqlite is used.
+    system "#{bin}/python", "-c", "import sqlite3"
+    # Check if some other modules import. Then the linked libs are working.
+    system "#{bin}/python", "-c", "import Tkinter"
   end
 end

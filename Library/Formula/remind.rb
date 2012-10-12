@@ -1,9 +1,9 @@
 require 'formula'
 
-class Remind <Formula
-  url 'http://www.roaringpenguin.com/files/download/remind-03.01.09.tar.gz'
+class Remind < Formula
+  url 'http://www.roaringpenguin.com/files/download/remind-03.01.12.tar.gz'
   homepage 'http://www.roaringpenguin.com/products/remind'
-  md5 '261a5fb774a1d671cc71e36fd0ea02b3'
+  sha1 '0978357014916e0c5259e18b845d291eeb367b6c'
 
   def install
     # Remove unnecessary sleeps when running on Apple

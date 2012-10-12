@@ -1,12 +1,12 @@
 require 'formula'
 
-class Bowtie <Formula
-  url 'http://downloads.sourceforge.net/project/bowtie-bio/bowtie/0.12.5/bowtie-0.12.5-src.zip'
+class Bowtie < Formula
+  url 'http://downloads.sourceforge.net/project/bowtie-bio/bowtie/0.12.7/bowtie-0.12.7-src.zip'
   homepage 'http://bowtie-bio.sourceforge.net/index.shtml'
-  md5 'c3c633b60f82a775226c1d6b27813315'
+  sha1 '0eb752db072a2da6fc6dac55d2ab825422e994ce'
 
   def install
     system "make"
-    bin.install ["bowtie", "bowtie-build", "bowtie-inspect"]
+    bin.install %W(bowtie bowtie-build bowtie-inspect)
   end
 end

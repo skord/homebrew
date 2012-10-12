@@ -1,12 +1,14 @@
 require 'formula'
 
-class Links <Formula
-  url 'http://links.twibright.com/download/links-2.2.tar.gz'
+class Links < Formula
   homepage 'http://links.twibright.com/'
-  md5 'c9937f9ed0061f264973182f871fb667'
+  url 'http://links.twibright.com/download/links-2.7.tar.gz'
+  sha1 'e0773f2b23397bcbd08d5a3145d94e446dfb4969'
 
   def install
-    system "./configure", "--prefix=#{prefix}", "--disable-debug", "--disable-dependency-tracking"
+    system "./configure", "--disable-debug", "--disable-dependency-tracking",
+                          "--prefix=#{prefix}",
+                          "--mandir=#{man}"
     system "make install"
   end
 end

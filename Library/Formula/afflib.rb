@@ -1,11 +1,11 @@
 require 'formula'
 
-class Afflib <Formula
-  url 'http://afflib.org/downloads/afflib-3.6.2.tar.gz'
+class Afflib < Formula
+  url 'https://github.com/downloads/simsong/AFFLIBv3/afflib-3.7.1.tar.gz'
   homepage 'http://afflib.org'
-  md5 'c30468c762c8e06776410ca8fb56b782'
+  sha1 'fb35a2383a48b49f68e25ca97d67ee02342826ba'
 
-  depends_on 'expat'
+  depends_on 'expat' => :optional
 
   def install
     system "./configure", "--disable-debug", "--disable-dependency-tracking",

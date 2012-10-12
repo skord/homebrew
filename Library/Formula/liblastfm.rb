@@ -1,9 +1,10 @@
 require 'formula'
 
-class Liblastfm <Formula
-  homepage 'http://github.com/mxcl/liblastfm/'
-  url 'http://static.last.fm/src/liblastfm-0.3.0.tar.bz2'
-  md5 '3f73222ebc31635941832b01e7a494b6'
+class Liblastfm < Formula
+  homepage 'https://github.com/mxcl/liblastfm/'
+  url 'https://github.com/mxcl/liblastfm/tarball/e380c7f03f4b2417db87372df733606f4a153c53'
+  version '0.3.3.1'
+  sha1 'c68691b63a383f2a53a5894b99f165ffed4ea0db'
 
   depends_on 'qt'
   depends_on 'fftw'

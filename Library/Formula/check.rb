@@ -1,12 +1,16 @@
 require 'formula'
 
-class Check <Formula
-  url 'http://downloads.sourceforge.net/project/check/check/0.9.8/check-0.9.8.tar.gz'
+class Check < Formula
   homepage 'http://check.sourceforge.net/'
-  md5 '5d75e9a6027cde79d2c339ef261e7470'
+  url 'http://downloads.sourceforge.net/project/check/check/0.9.8/check-0.9.8.tar.gz'
+  sha1 'a75cc89411e24b5d39b7869f8233e19f210de555'
+
+  option :universal
 
   def install
-    system "./configure", "--prefix=#{prefix}", "--disable-debug", "--disable-dependency-tracking"
+    ENV.universal_binary if build.universal?
+    system "./configure", "--disable-dependency-tracking",
+                          "--prefix=#{prefix}"
     system "make install"
   end
 end

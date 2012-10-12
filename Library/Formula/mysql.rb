@@ -1,86 +1,148 @@
 require 'formula'
 
-class Mysql <Formula
-  homepage 'http://dev.mysql.com/doc/refman/5.1/en/'
-  url 'http://mysql.llarian.net/Downloads/MySQL-5.1/mysql-5.1.49.tar.gz'
-  md5 'a90d87a71fa3c23dff6d78afc8e3184c'
+class Mysql < Formula
+  homepage 'http://dev.mysql.com/doc/refman/5.5/en/'
+  url 'http://dev.mysql.com/get/Downloads/MySQL-5.5/mysql-5.5.27.tar.gz/from/http://cdn.mysql.com/'
+  version '5.5.27'
+  sha1 'd53dfbe4ac1119e4c4a33d639f2904abdd0f226d'
 
-  depends_on 'readline'
-
-  def options
-    [
-      ['--with-tests', "Keep tests when installing."],
-      ['--with-bench', "Keep benchmark app when installing."],
-      ['--client-only', "Only install client tools, not the server."],
-      ['--universal', "Make mysql a universal binary"]
-    ]
+  bottle do
+    sha1 '7aa66b8ea9b03baec9c5d1a678a7c547494e00fe' => :mountainlion
+    sha1 '5257fd34a20a2375e1d73c733c44e2d0fa1bcae2' => :lion
+    sha1 '8fe8c5db43b129e45823444180f4d81af0c0c880' => :snowleopard
   end
 
-  def patches
-    DATA
+  depends_on 'cmake' => :build
+  depends_on 'pidof' unless MacOS.version >= :mountain_lion
+
+  option :universal
+  option 'with-tests', 'Build with unit tests'
+  option 'with-embedded', 'Build the embedded server'
+  option 'with-libedit', 'Compile with editline wrapper instead of readline'
+  option 'with-archive-storage-engine', 'Compile with the ARCHIVE storage engine enabled'
+  option 'with-blackhole-storage-engine', 'Compile with the BLACKHOLE storage engine enabled'
+  option 'enable-local-infile', 'Build with local infile loading support'
+  option 'enable-debug', 'Build with debug support'
+
+  conflicts_with 'mariadb',
+    :because => "mysql and mariadb install the same binaries."
+
+  conflicts_with 'percona-server',
+    :because => "mysql and percona-server install the same binaries."
+
+  fails_with :llvm do
+    build 2326
+    cause "https://github.com/mxcl/homebrew/issues/issue/144"
   end
 
   def install
-    fails_with_llvm "http://github.com/mxcl/homebrew/issues/issue/144"
+    # Build without compiler or CPU specific optimization flags to facilitate
+    # compilation of gems and other software that queries `mysql-config`.
+    ENV.minimal_optimization
 
-    # See: http://dev.mysql.com/doc/refman/5.1/en/configure-options.html
-    # These flags may not apply to gcc 4+
-    ENV['CXXFLAGS'] = ENV['CXXFLAGS'].gsub "-fomit-frame-pointer", ""
-    ENV['CXXFLAGS'] += " -fno-omit-frame-pointer -felide-constructors"
+    # Make sure the var/mysql directory exists
+    (var+"mysql").mkpath
 
-    # Make universal for bindings to universal applications
-    ENV.universal_binary if ARGV.include? '--universal'
+    args = [".",
+            "-DCMAKE_INSTALL_PREFIX=#{prefix}",
+            "-DMYSQL_DATADIR=#{var}/mysql",
+            "-DINSTALL_MANDIR=#{man}",
+            "-DINSTALL_DOCDIR=#{doc}",
+            "-DINSTALL_INFODIR=#{info}",
+            # CMake prepends prefix, so use share.basename
+            "-DINSTALL_MYSQLSHAREDIR=#{share.basename}/#{name}",
+            "-DWITH_SSL=yes",
+            "-DDEFAULT_CHARSET=utf8",
+            "-DDEFAULT_COLLATION=utf8_general_ci",
+            "-DSYSCONFDIR=#{etc}"]
 
-    configure_args = [
-      "--without-docs",
-      "--without-debug",
-      "--disable-dependency-tracking",
-      "--prefix=#{prefix}",
-      "--localstatedir=#{var}/mysql",
-      "--sysconfdir=#{etc}",
-      "--with-plugins=innobase,myisam",
-      "--with-extra-charsets=complex",
-      "--with-ssl",
-      "--without-readline", # Confusingly, means "use detected readline instead of included readline"
-      "--enable-assembler",
-      "--enable-thread-safe-client",
-      "--enable-local-infile",
-      "--enable-shared"]
+    # To enable unit testing at build, we need to download the unit testing suite
+    if build.include? 'with-tests'
+      args << "-DENABLE_DOWNLOADS=ON"
+    else
+      args << "-DWITH_UNIT_TESTS=OFF"
+    end
 
-    configure_args << "--without-server" if ARGV.include? '--client-only'
+    # Build the embedded server
+    args << "-DWITH_EMBEDDED_SERVER=ON" if build.include? 'with-embedded'
 
-    system "./configure", *configure_args
+    # Compile with readline unless libedit is explicitly chosen
+    args << "-DWITH_READLINE=yes" unless build.include? 'with-libedit'
+
+    # Compile with ARCHIVE engine enabled if chosen
+    args << "-DWITH_ARCHIVE_STORAGE_ENGINE=1" if build.include? 'with-archive-storage-engine'
+
+    # Compile with BLACKHOLE engine enabled if chosen
+    args << "-DWITH_BLACKHOLE_STORAGE_ENGINE=1" if build.include? 'with-blackhole-storage-engine'
+
+    # Make universal for binding to universal applications
+    args << "-DCMAKE_OSX_ARCHITECTURES='i386;x86_64'" if build.universal?
+
+    # Build with local infile loading support
+    args << "-DENABLED_LOCAL_INFILE=1" if build.include? 'enable-local-infile'
+
+    # Build with debug support
+    args << "-DWITH_DEBUG=1" if build.include? 'enable-debug'
+
+    system "cmake", *args
+    system "make"
     system "make install"
 
-    ln_s "#{libexec}/mysqld", bin
-    ln_s "#{share}/mysql/mysql.server", bin
+    # Don't create databases inside of the prefix!
+    # See: https://github.com/mxcl/homebrew/issues/4975
+    rm_rf prefix+'data'
 
-    (prefix+'mysql-test').rmtree unless ARGV.include? '--with-tests' # save 66MB!
-    (prefix+'sql-bench').rmtree unless ARGV.include? '--with-bench'
-
-    (prefix+'com.mysql.mysqld.plist').write startup_plist
+    # Link the setup script into bin
+    ln_s prefix+'scripts/mysql_install_db', bin+'mysql_install_db'
+    # Fix up the control script and link into bin
+    inreplace "#{prefix}/support-files/mysql.server" do |s|
+      s.gsub!(/^(PATH=".*)(")/, "\\1:#{HOMEBREW_PREFIX}/bin\\2")
+      # pidof can be replaced with pgrep from proctools on Mountain Lion
+      s.gsub!(/pidof/, 'pgrep') if MacOS.version >= :mountain_lion
+    end
+    ln_s "#{prefix}/support-files/mysql.server", bin
   end
 
   def caveats; <<-EOS.undent
-    Set up databases with:
-        mysql_install_db
+    Set up databases to run AS YOUR USER ACCOUNT with:
+        unset TMPDIR
+        mysql_install_db --verbose --user=`whoami` --basedir="$(brew --prefix mysql)" --datadir=#{var}/mysql --tmpdir=/tmp
 
-    If this is your first install, automatically load on login with:
-        cp #{prefix}/com.mysql.mysqld.plist ~/Library/LaunchAgents
-        launchctl load -w ~/Library/LaunchAgents/com.mysql.mysqld.plist
+    To set up base tables in another folder, or use a different user to run
+    mysqld, view the help for mysqld_install_db:
+        mysql_install_db --help
 
-    If this is an upgrade and you already have the com.mysql.mysqld.plist loaded:
-        launchctl unload -w ~/Library/LaunchAgents/com.mysql.mysqld.plist
-        cp #{prefix}/com.mysql.mysqld.plist ~/Library/LaunchAgents
-        launchctl load -w ~/Library/LaunchAgents/com.mysql.mysqld.plist
+    and view the MySQL documentation:
+      * http://dev.mysql.com/doc/refman/5.5/en/mysql-install-db.html
+      * http://dev.mysql.com/doc/refman/5.5/en/default-privileges.html
 
-    Note on upgrading:
-        We overwrite any existing com.mysql.mysqld.plist in ~/Library/LaunchAgents
-        if we are upgrading because previous versions of this brew created the
-        plist with a version specific program argument.
+    To run as, for instance, user "mysql", you may need to `sudo`:
+        sudo mysql_install_db ...options...
 
-    Or start manually with:
+    Start mysqld manually with:
         mysql.server start
+
+        Note: if this fails, you probably forgot to run the first two steps up above
+
+    A "/etc/my.cnf" from another install may interfere with a Homebrew-built
+    server starting up correctly.
+
+    To connect:
+        mysql -uroot
+
+    To launch on startup:
+    * if this is your first install:
+        mkdir -p ~/Library/LaunchAgents
+        cp #{plist_path} ~/Library/LaunchAgents/
+        launchctl load -w ~/Library/LaunchAgents/#{plist_path.basename}
+
+    * if this is an upgrade and you already have the #{plist_path.basename} loaded:
+        launchctl unload -w ~/Library/LaunchAgents/#{plist_path.basename}
+        cp #{plist_path} ~/Library/LaunchAgents/
+        launchctl load -w ~/Library/LaunchAgents/#{plist_path.basename}
+
+    You may also need to edit the plist to use the correct "UserName".
+
     EOS
   end
 
@@ -92,9 +154,9 @@ class Mysql <Formula
       <key>KeepAlive</key>
       <true/>
       <key>Label</key>
-      <string>com.mysql.mysqld</string>
+      <string>#{plist_name}</string>
       <key>Program</key>
-      <string>#{bin}/mysqld_safe</string>
+      <string>#{HOMEBREW_PREFIX}/bin/mysqld_safe</string>
       <key>RunAtLoad</key>
       <true/>
       <key>UserName</key>
@@ -106,31 +168,3 @@ class Mysql <Formula
     EOPLIST
   end
 end
-
-
-__END__
---- old/scripts/mysqld_safe.sh	2009-09-02 04:10:39.000000000 -0400
-+++ new/scripts/mysqld_safe.sh	2009-09-02 04:52:55.000000000 -0400
-@@ -383,7 +383,7 @@
- fi
- 
- USER_OPTION=""
--if test -w / -o "$USER" = "root"
-+if test -w /sbin -o "$USER" = "root"
- then
-   if test "$user" != "root" -o $SET_USER = 1
-   then
-diff --git a/scripts/mysql_config.sh b/scripts/mysql_config.sh
-index efc8254..8964b70 100644
---- a/scripts/mysql_config.sh
-+++ b/scripts/mysql_config.sh
-@@ -132,7 +132,8 @@ for remove in DDBUG_OFF DSAFEMALLOC USAFEMALLOC DSAFE_MUTEX \
-               DEXTRA_DEBUG DHAVE_purify O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
-               'mtune=[-A-Za-z0-9]*' 'mcpu=[-A-Za-z0-9]*' 'march=[-A-Za-z0-9]*' \
-               Xa xstrconst "xc99=none" AC99 \
--              unroll2 ip mp restrict
-+              unroll2 ip mp restrict \
-+              mmmx 'msse[0-9.]*' 'mfpmath=sse' w pipe 'fomit-frame-pointer' 'mmacosx-version-min=10.[0-9]'
- do
-   # The first option we might strip will always have a space before it because
-   # we set -I$pkgincludedir as the first option

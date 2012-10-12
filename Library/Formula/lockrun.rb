@@ -1,9 +1,9 @@
 require 'formula'
 
-class Lockrun <Formula
+class Lockrun < Formula
   url 'http://unixwiz.net/tools/lockrun.c'
   homepage 'http://unixwiz.net/tools/lockrun.html'
-  md5 '094b6c41be239de2ded94b9b7f590004'
+  sha1 '04c6df93c3ac5b2cdedfb25615f39c9ed50c0663'
   version '20090625'
 
   def install

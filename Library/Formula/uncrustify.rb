@@ -1,10 +1,10 @@
 require 'formula'
 
-class Uncrustify <Formula
-  url 'http://downloads.sourceforge.net/project/uncrustify/uncrustify/uncrustify-0.56/uncrustify-0.56.tar.gz'
-  head 'git://github.com/bengardner/uncrustify.git'
+class Uncrustify < Formula
+  url 'http://downloads.sourceforge.net/project/uncrustify/uncrustify/uncrustify-0.59/uncrustify-0.59.tar.gz'
+  head 'https://github.com/bengardner/uncrustify.git'
   homepage 'http://uncrustify.sourceforge.net/'
-  md5 '991ee882a265fa28f23f747737bce740'
+  sha1 '233e4f6cb34ef7020ce49e5b5d14f0d46f277e31'
 
   def install
     system "./configure", "--prefix=#{prefix}", "--disable-dependency-tracking"

@@ -1,21 +1,35 @@
 require 'formula'
 
-class Rtmpdump <Formula
-  url 'http://rtmpdump.mplayerhq.hu/download/rtmpdump-2.3.tgz'
+class Rtmpdump < Formula
   homepage 'http://rtmpdump.mplayerhq.hu'
-  md5 'eb961f31cd55f0acf5aad1a7b900ef59'
+  url 'http://rtmpdump.mplayerhq.hu/download/rtmpdump-2.3.tgz'
+  sha1 'b65ce7708ae79adb51d1f43dd0b6d987076d7c42'
 
-  depends_on 'openssl' if MACOS_VERSION < 10.6
+  head 'git://git.ffmpeg.org/rtmpdump'
 
-  def patches
-    DATA
+  depends_on 'openssl' if MacOS.version == :leopard
+
+  fails_with :llvm do
+    build '2336'
+    cause "Crashes at runtime"
   end
+
+  # Use dylib instead of so
+  def patches; DATA; end unless build.head?
 
   def install
-    ENV.j1
-    system "make", "prefix=#{prefix}", "MANDIR=#{man}", "SYS=posix", "install"
+    ENV.deparallelize
+    sys_type = build.head? ? "darwin" : "posix"
+    system "make", "CC=#{ENV.cc}",
+                   "XCFLAGS=#{ENV.cflags}",
+                   "XLDFLAGS=#{ENV.ldflags}",
+                   "MANDIR=#{man}",
+                   "SYS=#{sys_type}",
+                   "prefix=#{prefix}",
+                   "install"
   end
 end
+
 __END__
 --- rtmpdump-2.3/librtmp/Makefile.orig	2010-07-30 23:05:25.000000000 +0200
 +++ rtmpdump-2.3/librtmp/Makefile	2010-07-30 23:08:23.000000000 +0200

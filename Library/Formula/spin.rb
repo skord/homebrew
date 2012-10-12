@@ -1,47 +1,51 @@
 require 'formula'
 
-class Spin <Formula
-  url 'http://spinroot.com/spin/Src/spin524.tar.gz'
+class Spin < Formula
   homepage 'http://spinroot.com/spin/whatispin.html'
-  md5 'c869e7bd83c70be6565cf77c6a98b72c'
-  version '5.2.4'
+  url 'http://spinroot.com/spin/Src/spin622.tar.gz'
+  version '6.2.2'
+  sha1 'f402048864761d0fceefa61e8f03a9ee33a16a4c'
 
+  fails_with :llvm do
+    build 2334
+  end
+
+  # replace -DPC with -DMAC in makefile CFLAGS
   def patches
     DATA
   end
 
   def install
-    fails_with_llvm
     ENV.deparallelize
 
-    # Compile and install the binary.
     cd("Src#{version}") do
       system "make"
       bin.install "spin"
     end
 
-    # Copy the man page.
     man1.install "Man/spin.1"
   end
 end
 
 # manual patching is required by the spin install process
 __END__
-diff --git a/Src5.2.4/makefile b/Src5.2.4/makefile
-index 67f22aa..596c893 100755
---- a/Src5.2.4/makefile
-+++ b/Src5.2.4/makefile
-@@ -12,10 +12,10 @@
+diff --git a/Src6.2.2/makefile b/Src6.2.2/makefile
+index 02d2a02..7687e0a 100644
+--- a/Src6.2.2/makefile
++++ b/Src6.2.2/makefile
+@@ -13,12 +13,12 @@
  
- CC=gcc -DNXT 		# -DNXT enables the X operator in LTL
- # CC=cc -m32 -DNXT 	# for 32bit compilation on a 64bit system
--CFLAGS=-ansi -D_POSIX_SOURCE -Wno-format-security	# on some systems add: -I/usr/include
-+#CFLAGS=-ansi -D_POSIX_SOURCE -Wno-format-security	# on some systems add: -I/usr/include
+ # see also ./make_pc for a simpler script, not requiring make
  
--# for a more picky compilation:
--# CFLAGS=-std=c99 -Wstrict-prototypes -pedantic -fno-strength-reduce -fno-builtin -W -Wshadow -Wpointer-arith -Wcast-qual -Winline -Wall -g
-+# for a more picky compilation: 
-+CFLAGS=-std=c99 -Wstrict-prototypes -pedantic -fno-strength-reduce -fno-builtin -W -Wshadow -Wpointer-arith -Wcast-qual -Winline -Wall -g -DMAC -DCPP="\"gcc -E -x c -xassembler-with-cpp\""
+-CC=gcc
+-CFLAGS=-O2 -DNXT	# on some systems add: -I/usr/include
++#CC=gcc
++#CFLAGS=-O2 -DNXT	# on some systems add: -I/usr/include
  
- #	on PC:		add -DPC to CFLAGS above
- #	on Solaris:	add -DSOLARIS
+ # CC=gcc -m32 	# 32bit compilation on a 64bit system
+ # for a more picky compilation use gcc-4 and:
+-# CFLAGS=-std=c99 -Wstrict-prototypes -pedantic -fno-strength-reduce -fno-builtin -W -Wshadow -Wpointer-arith -Wcast-qual -Winline -Wall -g -DNXT -DPC
++CFLAGS=-std=c99 -Wstrict-prototypes -pedantic -fno-strength-reduce -fno-builtin -W -Wshadow -Wpointer-arith -Wcast-qual -Winline -Wall -g -DNXT -DMAC
+ 
+ # on OS2:		spin -Picc -E/Pd+ -E/Q+
+ # for Visual C++:	spin -PCL  -E/E

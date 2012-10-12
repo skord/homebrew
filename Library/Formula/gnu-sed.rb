@@ -1,12 +1,18 @@
 require 'formula'
 
-class GnuSed <Formula
-  url 'http://ftp.gnu.org/gnu/sed/sed-4.2.1.tar.bz2'
+class GnuSed < Formula
   homepage 'http://www.gnu.org/software/sed/'
-  md5 '7d310fbd76e01a01115075c1fd3f455a'
+  url 'http://ftpmirror.gnu.org/sed/sed-4.2.1.tar.bz2'
+  mirror 'http://ftp.gnu.org/gnu/sed/sed-4.2.1.tar.bz2'
+  sha1 'ace93d23eabc00d3a8187ecf07d3a02b1b297810'
+
+  option 'default-names', "Do not prepend 'g' to the binary"
 
   def install
-    system "./configure", "--prefix=#{prefix}", "--disable-dependency-tracking", "--program-prefix=g"
+    args = ["--prefix=#{prefix}", "--disable-dependency-tracking"]
+    args << "--program-prefix=g" unless build.include? 'default-names'
+
+    system "./configure", *args
     system "make install"
   end
 end

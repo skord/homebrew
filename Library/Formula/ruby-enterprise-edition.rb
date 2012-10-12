@@ -1,30 +1,29 @@
 require 'formula'
 
-class RubyEnterpriseEdition <Formula
-  url 'http://rubyforge.org/frs/download.php/71096/ruby-enterprise-1.8.7-2010.02.tar.gz'
-  md5 '4df7b09c01adfd711b0ab76837611542'
+class RubyEnterpriseEdition < Formula
   homepage 'http://rubyenterpriseedition.com/'
+  url 'http://rubyenterpriseedition.googlecode.com/files/ruby-enterprise-1.8.7-2011.03.tar.gz'
+  sha1 '662f37afbe04f3a55ac3b119227a2cd4e53745bf'
+
+  env :std
+
+  option 'enable-shared', "Compile shared, but see caveats"
 
   depends_on 'readline'
 
-  skip_clean 'bin/ruby'
-
-  def options
-    [['--enable-shared', "Compile shared, but see caveats."]]
-  end
+  fails_with :llvm
 
   def install
-    fails_with_llvm "fails with LLVM"
-    args = ['./installer', "--auto", prefix, '--no-tcmalloc']
-    args << '-c' << '--enable-shared' if ARGV.include? '--enable-shared'
-    system *args
+    readline = Formula.factory('readline').prefix
+
+    args = ["--auto", prefix, '--no-tcmalloc']
+    args << '-c' << '--enable-shared' if build.include? 'enable-shared'
+    # Configure will complain that this is an unknown option, but it is actually OK
+    args << '-c' << "--with-readline-dir=#{readline}"
+    system './installer', *args
   end
 
   def caveats; <<-EOS.undent
-    Consider using RVM or Cider to manage Ruby environments:
-      * RVM: http://rvm.beginrescueend.com/
-      * Cider: http://www.atmos.org/cider/intro.html
-
     By default we don't compile REE as a shared library. From their documentation:
         Please note that enabling --enable-shared will make the Ruby interpreter
         about 20% slower.

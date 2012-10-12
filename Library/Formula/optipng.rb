@@ -1,16 +1,14 @@
 require 'formula'
 
-class Optipng <Formula
-  url 'http://downloads.sourceforge.net/optipng/optipng-0.6.3.tar.gz'
+class Optipng < Formula
   homepage 'http://optipng.sourceforge.net/'
-  md5 '6cef405197a878acff4c6216cf38e871'
+  url 'http://downloads.sourceforge.net/project/optipng/OptiPNG/optipng-0.7.3/optipng-0.7.3.tar.gz'
+  sha1 'c5dd2c688820f34fb6973d109ca880a77141cd31'
 
   def install
-    inreplace 'src/scripts/gcc.mak.in' do |s|
-      s.gsub! '/usr/local', prefix
-      s.change_make_var! 'mandir', man
-    end
-    system "./configure", "-with-system-zlib"
+    system "./configure", "--with-system-zlib",
+                          "--prefix=#{prefix}",
+                          "--mandir=#{man}"
     system "make install"
   end
 end

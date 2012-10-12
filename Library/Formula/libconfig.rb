@@ -1,9 +1,9 @@
 require 'formula'
 
-class Libconfig <Formula
-  url 'http://www.hyperrealm.com/libconfig/libconfig-1.4.5.tar.gz'
+class Libconfig < Formula
   homepage 'http://www.hyperrealm.com/libconfig/'
-  md5 'f2219e1b2501e7296a7d3e971c63666a'
+  url 'http://www.hyperrealm.com/libconfig/libconfig-1.4.8.tar.gz'
+  sha1 'c16b9caa207afdf36fc664ad0b2807ecc7a562fa'
 
   def install
     system "./configure", "--disable-dependency-tracking", "--prefix=#{prefix}"

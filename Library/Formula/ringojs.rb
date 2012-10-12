@@ -1,14 +1,14 @@
 require 'formula'
 
-class Ringojs <Formula
-  url 'http://github.com/downloads/ringo/ringojs/ringojs-0.5.tar.gz'
+class Ringojs < Formula
+  url 'https://github.com/downloads/ringo/ringojs/ringojs-0.8.tar.gz'
   homepage 'http://ringojs.org'
-  md5 'ef79b9f6840d68842f4fbc1f466807f5'
+  sha1 '28fd76fce28b41e2abcbe27a8b1731744d340e94'
 
   def shim_script target
     <<-EOS.undent
       #!/bin/bash
-      #{libexec}/bin/#{target} $*
+      "#{libexec}/bin/#{target}" "$@"
     EOS
   end
 

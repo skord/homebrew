@@ -1,12 +1,14 @@
 require 'formula'
 
-class Fontconfig <Formula
-  url 'http://fontconfig.org/release/fontconfig-2.8.0.tar.gz'
+class Fontconfig < Formula
   homepage 'http://fontconfig.org/'
-  md5 '77e15a92006ddc2adbb06f840d591c0e'
+  url 'http://fontconfig.org/release/fontconfig-2.10.1.tar.gz'
+  sha1 'e377cbe989cd22d3a10020309c906ecbbcac0043'
 
-  # Leopard comes with 2.4.x, which is too old for many packages.
-  keg_only :provided_by_osx
+  keg_only :provided_pre_mountain_lion
+
+  depends_on :freetype
+  depends_on 'pkg-config' => :build
 
   def install
     system "./configure", "--disable-dependency-tracking", "--prefix=#{prefix}"

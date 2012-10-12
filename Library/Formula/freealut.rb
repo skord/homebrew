@@ -1,18 +1,21 @@
 require 'formula'
 
-class Freealut <Formula
-  url 'http://connect.creativelabs.com/openal/Downloads/ALUT/freealut-1.1.0.tar.gz'
+class Freealut < Formula
   homepage 'http://connect.creativelabs.com/openal/Documentation/The%20OpenAL%20Utility%20Toolkit.htm'
-  md5 'e089b28a0267faabdb6c079ee173664a'
+  url 'http://connect.creativelabs.com/openal/Downloads/ALUT/freealut-1.1.0.tar.gz'
+  sha1 'b2c04d2b5e0896b3164c01deda39f58933c8055f'
 
-  def patches
-    # Adds the OpenAL frameworks to the library list so linking succeeds
-    DATA
-  end
+  # Adds the OpenAL frameworks to the library list so linking succeeds
+  def patches; DATA; end
+
+  depends_on :automake
+  depends_on :libtool
 
   def install
-  	system "./autogen.sh"
-    system "./configure", "--disable-debug", "--disable-dependency-tracking", "--prefix=#{prefix}",  "--mandir=#{man}"
+    system "./autogen.sh"
+    system "./configure", "--disable-debug", "--disable-dependency-tracking",
+                          "--prefix=#{prefix}",
+                          "--mandir=#{man}"
     system "make install"
   end
 end

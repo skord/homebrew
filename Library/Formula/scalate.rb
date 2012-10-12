@@ -1,33 +1,33 @@
 require 'formula'
 
-class Scalate <Formula
-  url 'http://repo1.maven.org/maven2/org/fusesource/scalate/scalate-distro/1.2/scalate-distro-1.2-unix-bin.tar.gz'
-  version '1.2'
+class Scalate < Formula
   homepage 'http://scalate.fusesource.org/'
-  md5 '20b8c3922f24043ae5118aa35efb5791'
+  url 'http://repo.fusesource.com/nexus/content/repositories/public/org/fusesource/scalate/scalate-distro/1.5.3/scalate-distro-1.5.3-unix-bin.tar.gz'
+  version '1.5.3'
+  sha1 '17e3cd6252b36c9cf80566738299c7e19df957bf'
 
-  def startup_script
-    <<-EOS.undent
+  # This startup script for Scalate calls the real startup script installed
+  # to Homebrew's cellar. This avoids issues with local vs. absolute symlinks.
+  def startup_script; <<-EOS.undent
     #!/bin/bash
-    # This startup script for Scalate calls the real startup script installed
-    # to Homebrew's cellar. This avoids issues with local vs. absolute symlinks.
-
-    #{libexec}/bin/scalate $*
+    "#{libexec}/bin/scalate" "$@"
     EOS
   end
 
   def install
-    rm_f Dir["bin/*.bat"]
+    # Recursively fix the permissions of extracted regular files
+    # excluding the bin directory contents.
+    %w{ archetypes docs lib samples license.txt readme.html }.each do |name|
+      Pathname.new(name).find { |path| path.chmod(0644) if path.file? }
+    end
 
-    prefix.install %w{ LICENSE.txt ReadMe.html }
+    prefix.install %w{ license.txt readme.html }
     libexec.install Dir['*']
-
     (bin+'scalate').write startup_script
   end
 
-  def caveats
-    <<-EOS.undent
-    Software was installed to:
+  def caveats; <<-EOS.undent
+    Scalate was installed to:
       #{libexec}
     EOS
   end

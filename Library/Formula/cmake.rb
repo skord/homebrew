@@ -1,32 +1,50 @@
 require 'formula'
 
-class Cmake <Formula
-  url 'http://www.cmake.org/files/v2.8/cmake-2.8.2.tar.gz'
-  md5 '8c967d5264657a798f22ee23976ff0d9'
-  homepage 'http://www.cmake.org/'
+class NoExpatFramework < Requirement
+  def message; <<-EOS.undent
+    Detected /Library/Frameworks/expat.framework
 
-  def patches
-    # CMAKE_OSX_ARCHITECTURES quoting bug. See: http://www.vtk.org/Bug/view.php?id=11244
-    # Not needed with CMake 2.8.3 and above.
-    "http://cmake.org/gitweb?p=cmake.git;a=patch;h=a8ded533"
-    "http://cmake.org/gitweb?p=cmake.git;a=patch;h=0790af3b"
+    This will be picked up by CMake's build system and likely cause the
+    build to fail, trying to link to a 32-bit version of expat.
+
+    You may need to move this file out of the way to compile CMake.
+    EOS
+  end
+  def satisfied?
+    not File.exist? "/Library/Frameworks/expat.framework"
+  end
+end
+
+
+class Cmake < Formula
+  homepage 'http://www.cmake.org/'
+  url 'http://www.cmake.org/files/v2.8/cmake-2.8.9.tar.gz'
+  sha1 'b96663c0757a5edfbddc410aabf7126a92131e2b'
+
+  bottle do
+    sha1 'ae7e0cf39556ea0a32e7bb7716ac820734ca7918' => :mountainlion
+    sha1 '6631aaeeafb9209e711508ad72727fbb4b5ab295' => :lion
+    sha1 'ea52f2a18b00f3404e8bf73c12c3da1d9a39f128' => :snowleopard
   end
 
-  def install
-    # xmlrpc is a stupid little library, rather than waste our users' time
-    # just let cmake use its own copy. God knows why something like cmake
-    # needs an xmlrpc library anyway! It is amazing!
-    inreplace 'CMakeLists.txt',
-              "# Mention to the user what system libraries are being used.",
-              "SET(CMAKE_USE_SYSTEM_XMLRPC 0)"
+  depends_on NoExpatFramework.new
 
-    system "./bootstrap", "--prefix=#{prefix}",
-                          "--system-libs",
-                          "--datadir=/share/cmake",
-                          "--docdir=/share/doc/cmake",
-                          "--mandir=/share/man"
-    ENV.j1 # There appear to be parallelism issues.
+  def install
+    args = %W[
+      --prefix=#{prefix}
+      --system-libs
+      --no-system-libarchive
+      --datadir=/share/cmake
+      --docdir=/share/doc/cmake
+      --mandir=/share/man
+    ]
+
+    system "./bootstrap", *args
     system "make"
     system "make install"
+  end
+
+  def test
+    system "#{bin}/cmake", "-E", "echo", "testing"
   end
 end

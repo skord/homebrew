@@ -1,9 +1,9 @@
 require 'formula'
 
-class Duply <Formula
-  url 'http://downloads.sourceforge.net/project/ftplicity/duply%20%28simple%20duplicity%29/1.5.x/duply_1.5.2.3.tgz'
+class Duply < Formula
   homepage 'http://duply.net'
-  md5 '7bb3af2219ba6c4dfe06856fbecbef8f'
+  url 'http://sourceforge.net/projects/ftplicity/files/duply%20%28simple%20duplicity%29/1.5.x/duply_1.5.7.tgz'
+  sha1 '61d5e17285d2645e818c8449e4fd8d149edf9b9e'
 
   depends_on 'duplicity'
 

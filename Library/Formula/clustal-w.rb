@@ -1,9 +1,9 @@
 require 'formula'
 
-class ClustalW <Formula
-  url 'http://www.clustal.org/download/current/clustalw-2.0.12.tar.gz'
+class ClustalW < Formula
   homepage 'http://www.clustal.org/'
-  md5 '8d0c50ffbe5898b03509aa0a7709f642'
+  url 'http://www.clustal.org/download/2.1/clustalw-2.1.tar.gz'
+  sha1 'f29784f68585544baa77cbeca6392e533d4cf433'
 
   def install
     system "./configure", "--disable-dependency-tracking", "--prefix=#{prefix}"

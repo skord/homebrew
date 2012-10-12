@@ -1,12 +1,15 @@
 require 'formula'
 
-class Pv <Formula
-  url 'http://pipeviewer.googlecode.com/files/pv-1.1.4.tar.bz2'
+class Pv < Formula
+  url 'http://www.ivarch.com/programs/sources/pv-1.2.0.tar.bz2'
   homepage 'http://www.ivarch.com/programs/pv.shtml'
-  md5 '63033e090d61a040407bfd043aeb6d27'
+  sha1 'bb921bca55347a1b7c6f74ce6b70cff0325499d7'
+
+  fails_with :llvm do
+    build 2334
+  end
 
   def install
-    fails_with_llvm
     system "./configure", "--disable-debug", "--disable-dependency-tracking",
                           "--prefix=#{prefix}",
                           "--mandir=#{man}",

@@ -1,15 +1,13 @@
 require 'formula'
 
-class Duff <Formula
-  url 'http://downloads.sourceforge.net/duff/duff-0.4.tar.bz2'
+class Duff < Formula
+  url 'http://downloads.sourceforge.net/project/duff/duff/0.5.2/duff-0.5.2.tar.gz'
   homepage 'http://duff.sourceforge.net/'
-  md5 '9767e471232c1b4ee553ae40dbe60464'
+  sha1 '23c4dd36f9829f52e436ca53c62d9f01007c7df6'
 
   def install
     system "./configure", "--disable-debug", "--disable-dependency-tracking",
                           "--prefix=#{prefix}", "--mandir=#{man}"
-    # this needs to be executable, but isn't for some reason...
-    system "chmod 755 ./install-sh"
     system "make install"
   end
 end

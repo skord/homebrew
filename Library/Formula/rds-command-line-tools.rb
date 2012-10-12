@@ -1,13 +1,10 @@
 require 'formula'
 
-# Require ec2-api-tools to get the base class
-require "#{File.dirname __FILE__}/ec2-api-tools.rb"
-
-class RdsCommandLineTools <AmazonWebServicesFormula
-  homepage 'http://developer.amazonwebservices.com/connect/entry.jspa?externalID=2928'
-  url      'http://s3.amazonaws.com/rds-downloads/RDSCli-1.2.006.zip'
-  md5      '72c5b14b049c874b59b8a44657d4dc60'
-  version  '1.2.006'
+class RdsCommandLineTools < AmazonWebServicesFormula
+  homepage 'http://aws.amazon.com/developertools/2928'
+  url 'http://s3.amazonaws.com/rds-downloads/RDSCli.zip'
+  version '1.10.002'
+  sha1 'e750a48a652c404c899919d4ff6e12bf0e4c7701'
 
   def install
     standard_install
@@ -18,7 +15,6 @@ class RdsCommandLineTools <AmazonWebServicesFormula
     s += <<-EOS.undent
 
       To check that your setup works properly, run the following command:
-
         rds-describe-db-instances --headers
 
       You should see a header line. If you have database instances already configured,

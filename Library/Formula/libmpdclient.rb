@@ -1,12 +1,16 @@
 require 'formula'
 
-class Libmpdclient <Formula
-  url 'http://downloads.sourceforge.net/project/musicpd/libmpdclient/2.1/libmpdclient-2.1.tar.bz2'
+class Libmpdclient < Formula
   homepage 'http://mpd.wikia.com/wiki/ClientLib:libmpdclient'
-  md5 '67efa0c3d107c090ef277dfb3442d1e3'
+  url 'http://downloads.sourceforge.net/project/musicpd/libmpdclient/2.7/libmpdclient-2.7.tar.bz2'
+  sha1 'a8ec78f6a7ae051fbf1cc0f47564301423c281b0'
+
+  option :universal
 
   def install
-    system "./configure", "--prefix=#{prefix}", "--disable-debug", "--disable-dependency-tracking"
+    ENV.universal_binary if build.universal?
+    system "./configure", "--disable-dependency-tracking",
+                          "--prefix=#{prefix}"
     system "make install"
   end
 end

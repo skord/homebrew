@@ -1,24 +1,31 @@
 require 'formula'
-require 'hardware'
 
-class Mongodb <Formula
+class Mongodb < Formula
   homepage 'http://www.mongodb.org/'
 
-  if Hardware.is_64_bit? and not ARGV.include? '--32bit'
-    url 'http://fastdl.mongodb.org/osx/mongodb-osx-x86_64-1.6.3.tgz'
-    md5 'da6a3a1e52e2ec7134a75b857ad540e8'
-    version '1.6.3-x86_64'
+  if Hardware.is_64_bit? and not build.build_32_bit?
+    url 'http://fastdl.mongodb.org/osx/mongodb-osx-x86_64-2.2.0.tgz'
+    md5 '5ad0d0b046919118e73976d670dce5e5'
+    version '2.2.0-x86_64'
+
+    devel do
+      url 'http://fastdl.mongodb.org/osx/mongodb-osx-x86_64-2.2.1-rc0.tgz'
+      md5 '5c1a448faa2e568dcc10e81c177249e8'
+      version '2.2.1-rc0-x86_64'
+    end
   else
-    url 'http://fastdl.mongodb.org/osx/mongodb-osx-i386-1.6.3.tgz'
-    md5 '6f8244f0bc3a842d16f92e5f7fa33e98'
-    version '1.6.3-i386'
+    url 'http://fastdl.mongodb.org/osx/mongodb-osx-i386-2.2.0.tgz'
+    md5 '576cc456081f8348a59448675fd1afde'
+    version '2.2.0-i386'
+
+    devel do
+      url 'http://fastdl.mongodb.org/osx/mongodb-osx-i386-2.2.1-rc0.tgz'
+      md5 'fab99dfe25114e616ba4ae47665fd1cc'
+      version '2.2.1-rc0-i386'
+    end
   end
 
-  skip_clean :all
-
-  def options
-    [['--32bit', 'Install the 32-bit version.']]
-  end
+  option '32-bit'
 
   def install
     # Copy the prebuilt binaries to prefix
@@ -28,34 +35,62 @@ class Mongodb <Formula
     (var+'mongodb').mkpath
     (var+'log/mongodb').mkpath
 
-    # Write the configuration files and launchd script
+    # Write the configuration files
     (prefix+'mongod.conf').write mongodb_conf
-    (prefix+'org.mongodb.mongod.plist').write startup_plist
+
+    # Homebrew: it just works.
+    # NOTE plist updated to use prefix/mongodb!
+    mv (sh = bin/'mongod'), prefix
+    sh.write <<-EOS.undent
+      #!/usr/bin/env ruby
+      ARGV << '--config' << '#{etc}/mongod.conf' unless ARGV.include? '--config'
+      exec "#{prefix}/mongod", *ARGV
+    EOS
+    sh.chmod 0755
+
+    # copy the config file to etc if this is the first install.
+    etc.install prefix+'mongod.conf' unless File.exists? etc+"mongod.conf"
   end
 
-  def caveats; <<-EOS
-If this is your first install, automatically load on login with:
-    cp #{prefix}/org.mongodb.mongod.plist ~/Library/LaunchAgents
-    launchctl load -w ~/Library/LaunchAgents/org.mongodb.mongod.plist
+  def caveats
+    bn = plist_path.basename
+    la = Pathname.new("#{ENV['HOME']}/Library/LaunchAgents")
+    prettypath = "~/Library/LaunchAgents/#{bn}"
+    domain = plist_path.basename('.plist')
+    load = "launchctl load -w #{prettypath}"
+    s = []
 
-If this is an upgrade and you already have the org.mongodb.mongod.plist loaded:
-    launchctl unload -w ~/Library/LaunchAgents/org.mongodb.mongod.plist
-    cp #{prefix}/org.mongodb.mongod.plist ~/Library/LaunchAgents
-    launchctl load -w ~/Library/LaunchAgents/org.mongodb.mongod.plist
-
-Or start it manually:
-    mongod run --config #{prefix}/mongod.conf
-EOS
+    # we readlink because this path probably doesn't exist since caveats
+    # occurs before the link step of installation
+    if not (la/bn).file?
+      s << "To have launchd start #{name} at login:"
+      s << "    mkdir -p ~/Library/LaunchAgents" unless la.directory?
+      s << "    ln -s #{HOMEBREW_PREFIX}/opt/#{name}/*.plist ~/Library/LaunchAgents/"
+      s << "Then to load #{name} now:"
+      s << "    #{load}"
+      s << "Or, if you don't want/need launchctl, you can just run:"
+      s << "    mongod"
+    elsif Kernel.system "/bin/launchctl list #{domain} &>/dev/null"
+      s << "You should reload #{name}:"
+      s << "    launchctl unload -w #{prettypath}"
+      s << "    #{load}"
+    else
+      s << "To load #{name}:"
+      s << "    #{load}"
+    end
   end
 
-  def mongodb_conf
-    return <<-EOS
-# Store data in #{var}/mongodb instead of the default /data/db
-dbpath = #{var}/mongodb
+  def mongodb_conf; <<-EOS.undent
+    # Store data in #{var}/mongodb instead of the default /data/db
+    dbpath = #{var}/mongodb
 
-# Only accept local connections
-bind_ip = 127.0.0.1
-EOS
+    # Append logs to #{var}/log/mongodb/mongo.log
+    logpath = #{var}/log/mongodb/mongo.log
+    logappend = true
+
+    # Only accept local connections
+    bind_ip = 127.0.0.1
+    EOS
   end
 
   def startup_plist
@@ -65,18 +100,18 @@ EOS
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>org.mongodb.mongod</string>
+  <string>#{plist_name}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>#{bin}/mongod</string>
+    <string>#{opt_prefix}/mongod</string>
     <string>run</string>
     <string>--config</string>
-    <string>#{prefix}/mongod.conf</string>
+    <string>#{etc}/mongod.conf</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
-  <true/>
+  <false/>
   <key>UserName</key>
   <string>#{`whoami`.chomp}</string>
   <key>WorkingDirectory</key>

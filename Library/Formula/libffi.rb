@@ -1,17 +1,12 @@
 require 'formula'
 
-class Libffi <Formula
-  url 'ftp://sourceware.org/pub/libffi/libffi-3.0.8.tar.gz'
+class Libffi < Formula
   homepage 'http://sourceware.org/libffi/'
-  sha1 'ce44d10c39d9a37479c8777e206cac0f36c48712'
+  url 'http://mirrors.kernel.org/sources.redhat.com/libffi/libffi-3.0.11.tar.gz'
+  mirror 'ftp://sourceware.org/pub/libffi/libffi-3.0.11.tar.gz'
+  sha1 'bff6a6c886f90ad5e30dee0b46676e8e0297d81d'
 
-  keg_only :provided_by_osx
-
-  def patches
-    host = "http://trac.macports.org"
-    base = "export/57218/trunk/dports/devel/libffi/files"
-    { :p0 => "#{host}/#{base}/patch-includedir.diff" }
-  end
+  keg_only :provided_by_osx, "Some formulae require a newer version of libffi."
 
   def install
     ENV.universal_binary

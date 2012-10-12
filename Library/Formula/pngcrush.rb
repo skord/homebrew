@@ -1,17 +1,20 @@
 require 'formula'
 
-class Pngcrush <Formula
+class Pngcrush < Formula
   homepage 'http://pmt.sourceforge.net/pngcrush/'
-  url 'http://downloads.sourceforge.net/project/pmt/pngcrush/00-1.7.12/pngcrush-1.7.12.tar.bz2'
-  md5 '16d2eab491a13c1bc32d763e3d21e85b'
+  url 'http://downloads.sourceforge.net/project/pmt/pngcrush/1.7.38/pngcrush-1.7.38.tar.gz'
+  sha1 'ed156aaa53b1b48fa0d3e32466d0d5512b25a67a'
 
   def install
-    # use our CFLAGS, LDFLAGS, CC, and LD
-    inreplace 'Makefile' do |s|
-      s.remove_make_var! %w[CFLAGS LDFLAGS CC LD]
-    end
+    # Required to successfully build the bundled zlib 1.2.6
+    ENV.append_to_cflags "-DZ_SOLO"
+    # Required to enable "-cc" (color counting) option (disabled by default since 1.5.1)
+    ENV.append_to_cflags "-DPNGCRUSH_COUNT_COLORS"
 
-    system "make"
+    system "make", "CC=#{ENV.cc}",
+                   "LD=#{ENV.cc}",
+                   "CFLAGS=#{ENV.cflags}",
+                   "LDFLAGS=#{ENV.ldflags}"
     bin.install 'pngcrush'
   end
 end

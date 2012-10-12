@@ -1,17 +1,15 @@
 require 'formula'
 
 class Lcov < Formula
-  url 'http://downloads.sourceforge.net/ltp/lcov-1.8.tar.gz'
+  url 'http://downloads.sourceforge.net/ltp/lcov-1.9.tar.gz'
   homepage 'http://ltp.sourceforge.net/coverage/lcov.php'
-  md5 'a909d9145111c6133c65b9dce007d7a1'
-
-  depends_on 'coreutils'
+  sha1 '5aff4b998b1288896734326a0b74ab536339ec21'
 
   def install
     %w(bin/gendesc bin/genhtml bin/geninfo bin/genpng bin/lcov).each do |file|
       inreplace file, '/etc/lcovrc', "#{prefix}/etc/lcovrc"
     end
-    system "make PREFIX=#{prefix} install"
+    system "make", "PREFIX=#{prefix}", "install"
   end
 
   def patches
@@ -22,12 +20,13 @@ end
 __END__
 --- lcov-1.8/bin/install.sh~	2010-01-29 19:14:46.000000000 +0900
 +++ lcov-1.8/bin/install.sh	2010-04-16 21:40:57.000000000 +0900
-@@ -34,7 +34,7 @@
+@@ -34,7 +34,8 @@
    local TARGET=$2
    local PARAMS=$3
  
 -  install -p -D $PARAMS $SOURCE $TARGET
-+  ginstall -p -D $PARAMS $SOURCE $TARGET
++  mkdir -p `dirname $TARGET`
++  install -p $PARAMS $SOURCE $TARGET
  }
  
  

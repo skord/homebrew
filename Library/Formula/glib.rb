@@ -1,50 +1,62 @@
 require 'formula'
 
-class Libiconv <Formula
-  url 'http://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.13.1.tar.gz'
-  md5 '7ab33ebd26687c744a37264a330bbe9a'
-  homepage 'http://www.gnu.org/software/libiconv/'
-end
+class Glib < Formula
+  homepage 'http://developer.gnome.org/glib/'
+  url 'http://ftp.gnome.org/pub/gnome/sources/glib/2.32/glib-2.32.4.tar.xz'
+  sha256 'a5d742a4fda22fb6975a8c0cfcd2499dd1c809b8afd4ef709bda4d11b167fae2'
 
+  option :universal
+  option 'test', 'Build a debug build and run tests. NOTE: Not all tests succeed yet'
 
-class Glib <Formula
-  url 'http://ftp.gnome.org/pub/gnome/sources/glib/2.24/glib-2.24.1.tar.bz2'
-  sha256 '014c3da960bf17117371075c16495f05f36501db990851ceea658f15d2ea6d04'
-  homepage 'http://www.gtk.org'
-
-  depends_on 'pkg-config'
+  depends_on 'pkg-config' => :build
+  depends_on 'xz' => :build
   depends_on 'gettext'
+  depends_on 'libffi'
+
+  fails_with :llvm do
+    build 2334
+    cause "Undefined symbol errors while linking"
+  end
+
+  def patches
+    # https://bugzilla.gnome.org/show_bug.cgi?id=673047  Still open at 2.32.3
+    # https://bugzilla.gnome.org/show_bug.cgi?id=644473  Still open at 2.32.3
+    # https://bugzilla.gnome.org/show_bug.cgi?id=673135  Resolved as wontfix.
+    p = { :p1 => %W[
+        https://raw.github.com/gist/2235195/19cdaebdff7dcc94ccd9b3747d43a09318f0b846/glib-gunicollate.diff
+        https://raw.github.com/gist/2235202/26f885e079e4d61da26d239970301b818ddbb4ab/glib-gtimezone.diff
+        https://raw.github.com/gist/2246469/591586214960f7647b1454e7d547c3935988a0a7/glib-configurable-paths.diff
+      ]}
+    p[:p0] = %W[
+        https://trac.macports.org/export/95596/trunk/dports/devel/glib2/files/patch-configure.diff
+      ] if build.universal?
+    p
+  end
 
   def install
-    fails_with_llvm "Undefined symbol errors while linking"
+    ENV.universal_binary if build.universal?
 
-    # Snow Leopard libiconv doesn't have a 64bit version of the libiconv_open
-    # function, which breaks things for us, so we build our own
-    # http://www.mail-archive.com/gtk-list@gnome.org/msg28747.html
+    # -w is said to causes gcc to emit spurious errors for this package
+    ENV.enable_warnings if ENV.compiler == :gcc
 
-    iconvd = Pathname.getwd+'iconv'
-    iconvd.mkpath
+    # Disable dtrace; see https://trac.macports.org/ticket/30413
+    args = %W[
+      --disable-maintainer-mode
+      --disable-dependency-tracking
+      --disable-dtrace
+      --prefix=#{prefix}
+      --localstatedir=#{var}
+    ]
 
-    Libiconv.new.brew do
-      system "./configure", "--prefix=#{iconvd}", "--disable-debug", "--disable-dependency-tracking",
-                            "--enable-static", "--disable-shared"
-      system "make install"
+    system "./configure", *args
+
+    if build.universal?
+      system "curl 'https://trac.macports.org/export/95596/trunk/dports/devel/glib2/files/config.h.ed' | ed - config.h"
     end
 
-    # indeed, amazingly, -w causes gcc to emit spurious errors for this package!
-    ENV.enable_warnings
-
-    # basically we are going to statically link to the symbols that glib doesn't
-    # find in the bugged GNU libiconv that ships with 10.6
-    ENV['LDFLAGS'] += " #{iconvd}/lib/libiconv.a"
-
-    system "./configure", "--disable-debug",
-                          "--prefix=#{prefix}",
-                          "--disable-dependency-tracking",
-                          "--disable-rebuilds",
-                          "--with-libiconv=gnu"
     system "make"
-    ENV.j1 # Supress a folder already exists warning
+    # the spawn-multithreaded tests require more open files
+    system "ulimit -n 1024; make check" if build.include? 'test'
     system "make install"
 
     # This sucks; gettext is Keg only to prevent conflicts with the wider
@@ -61,5 +73,34 @@ class Glib <Formula
     end
 
     (share+'gtk-doc').rmtree
+  end
+
+  def test
+    unless Formula.factory("pkg-config").installed?
+      puts "pkg-config is required to run this test, but is not installed"
+      exit 1
+    end
+
+    mktemp do
+      (Pathname.pwd/'test.c').write <<-EOS.undent
+        #include <string.h>
+        #include <glib.h>
+
+        int main(void)
+        {
+            gchar *result_1, *result_2;
+            char *str = "string";
+
+            result_1 = g_convert(str, strlen(str), "ASCII", "UTF-8", NULL, NULL, NULL);
+            result_2 = g_convert(result_1, strlen(result_1), "UTF-8", "ASCII", NULL, NULL, NULL);
+
+            return (strcmp(str, result_2) == 0) ? 0 : 1;
+        }
+        EOS
+      flags = *`pkg-config --cflags --libs glib-2.0`.split
+      flags += ENV.cflags.split
+      system ENV.cc, "-o", "test", "test.c", *flags
+      system "./test"
+    end
   end
 end

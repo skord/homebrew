@@ -1,28 +1,17 @@
 require 'formula'
 
-class Tomcat <Formula
-  url 'http://archive.apache.org/dist/tomcat/tomcat-6/v6.0.26/bin/apache-tomcat-6.0.26.tar.gz'
+class Tomcat < Formula
   homepage 'http://tomcat.apache.org/'
-  md5 'f9eafa9bfd620324d1270ae8f09a8c89'
-
-  skip_clean :all
+  url 'http://www.apache.org/dyn/closer.cgi?path=tomcat/tomcat-7/v7.0.32/bin/apache-tomcat-7.0.32.tar.gz'
+  sha1 '94d7efcb0d2797b196b1a7d9537e3ed53f7607f4'
 
   def install
-    rm_rf Dir['bin/*.{cmd,bat]}']
+    # Remove Windows scripts
+    rm_rf Dir['bin/*.bat']
+
+    # Install files
+    prefix.install %w{ NOTICE LICENSE RELEASE-NOTES RUNNING.txt }
     libexec.install Dir['*']
-    (libexec+'logs').mkpath
-    bin.mkpath
-    Dir["#{libexec}/bin/*.sh"].each { |f| ln_s f, bin }
-  end
-
-  def caveats; <<-EOS.undent
-    Note: Some of the support scripts used by Tomcat have very generic names.
-    These are likely to conflict with support scripts used by other Java-based
-    server software.
-
-    You may want to `brew unlink tomcat` and add:
-      #{bin}
-    to your PATH instead.
-    EOS
+    bin.install_symlink "#{libexec}/bin/catalina.sh" => "catalina"
   end
 end

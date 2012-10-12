@@ -1,13 +1,15 @@
 require 'formula'
 
-class Narwhal <Formula
-  head 'git://github.com/tlrobinson/narwhal.git'
-  homepage 'http://www.narwhaljs.org/'
+class Narwhal < Formula
+  homepage 'https://github.com/280north/narwhal'
+  url 'https://github.com/280north/narwhal/tarball/v0.3.2'
+  sha1 '64865fd335ad5078a32eee4504a98fdd6796199c'
+
+  head 'https://github.com/280north/narwhal.git'
 
   def install
     rm Dir['bin/*.cmd']
     libexec.install Dir['*']
-    bin.mkpath
-    Dir["#{libexec}/bin/*"].each { |d| ln_s d, bin }
+    bin.install_symlink Dir["#{libexec}/bin/*"]
   end
 end

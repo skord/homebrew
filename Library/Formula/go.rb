@@ -1,53 +1,42 @@
 require 'formula'
-require 'hardware'
 
-class Go <Formula
-  head 'http://go.googlecode.com/hg/', :revision => 'release'
+class Go < Formula
   homepage 'http://golang.org'
+  url 'http://go.googlecode.com/files/go1.0.3.src.tar.gz'
+  version '1.0.3'
+  sha1 '1a67293c10d6c06c633c078a7ca67e98c8b58471'
+
+  head 'http://go.googlecode.com/hg/'
 
   skip_clean 'bin'
 
-  def cruft
-    %w[src include test doc]
-  end
-
-  def which_arch
-    Hardware.is_64_bit? ? 'amd64' : '386'
-  end
-
   def install
-    ENV.j1 # http://github.com/mxcl/homebrew/issues/#issue/237
-    prefix.install %w[src include test doc misc]
-    Dir.chdir prefix
-    mkdir %w[pkg bin lib]
+    # install the completion script
+    (prefix/'etc/bash_completion.d').install 'misc/bash/go' => 'go-completion.bash'
 
-    ENV['GOROOT'] = Dir.getwd
-    ENV['GOBIN'] = bin
-    ENV['GOARCH'] = which_arch
-    ENV['GOOS'] = 'darwin'
+    prefix.install Dir['*']
 
-    ENV.prepend 'PATH', ENV['GOBIN'], ':'
+    cd prefix do
+      # The version check is due to:
+      # http://codereview.appspot.com/5654068
+      (prefix/'VERSION').write 'default' if build.head?
 
-    Dir.chdir 'src' do
-      system "./all.bash"
-      # Keep the makefiles - http://github.com/mxcl/homebrew/issues/issue/1404
+      # Build only. Run `brew test go` to run distrib's tests.
+      cd 'src' do
+        system './make.bash'
+      end
     end
 
-    Dir['src/*'].each{|f| rm_rf f unless f.match(/^src\/Make/) }
-    rm_rf %w[include test doc]
+    # Don't install header files; they aren't necessary and can
+    # cause problems with other builds. See:
+    # http://trac.macports.org/ticket/30203
+    # http://code.google.com/p/go/issues/detail?id=2407
+    include.rmtree
   end
 
-  def caveats
-    <<-EOS.undent
-      In order to use Go, set the following in your ~/.profile:
-
-        export GOROOT=`brew --cellar`/go/#{version}
-        export GOBIN=#{HOMEBREW_PREFIX}/bin
-        export GOARCH=#{which_arch}
-        export GOOS=darwin
-
-      Presumably at some point the Go developers won't require us to
-      mutilate our shell environments in order to compile Go code...
-    EOS
+  def test
+    cd "#{prefix}/src" do
+      system './run.bash --no-rebuild'
+    end
   end
 end

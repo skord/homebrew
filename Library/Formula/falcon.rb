@@ -1,40 +1,44 @@
-# This formula currently uses the bundled libedit since there are known
-# problems with readline.
-
 require 'formula'
 
-class FalconHtmldocs <Formula
-  url 'http://falconpl.org/project_dl/_official_rel/Falcon-docs-core.0.9.6.4.tar.gz'
-  md5 '94c5b17af5b9e06e4d97d497c292aad0'
-end
-
-class FalconFeathersHtmldocs <Formula
-  url 'http://falconpl.org/project_dl/_official_rel/Falcon-feathers-docs.0.9.6.4.tar.gz'
-  md5 '42ffa8650cf5a86e426837c38977ea5a'
-end
-
-class Falcon <Formula
-  url 'http://falconpl.org/project_dl/_official_rel/Falcon-0.9.6.4.tar.gz'
+class Falcon < Formula
   homepage 'http://www.falconpl.org/'
-  md5 '35475a49f8dcc9ccf1c89f54de156951'
+  url 'http://falconpl.org/project_dl/_official_rel/Falcon-0.9.6.8.tgz'
+  sha1 '8720096a8257e8bf370e3f0a072b5600d7575f64'
 
-  depends_on 'cmake'
+  head 'http://git.falconpl.org/falcon.git'
+
+  option 'editline', "Use editline instead of readline"
+  option 'feathers', "Include feathers (extra libraries)"
+
+  depends_on 'cmake' => :build
   depends_on 'pcre'
 
-  def install
-    cmake_opts = "-DCMAKE_INSTALL_NAME_DIR=#{lib}"
-    ENV.append "EXTRA_CMAKE", cmake_opts
-    system "./build.sh", "-p", prefix, "-int", "-el"
-    system "./build.sh", "-i"
-    # install the htmldocs for the core and standard modules (feathers)
-    FalconHtmldocs.new.brew { (doc+'core-doc').install Dir['*'] }
-    FalconFeathersHtmldocs.new.brew { (doc+'feathers-doc').install Dir['*'] }
-  end
+  conflicts_with 'sdl',
+    :because => "Falcon optionally depends on SDL and then the build breaks. Fix it!"
 
-  def caveats; <<-EOS.undent
-    HTML docs for the core and standard libraries (feathers) are
-    installed in #{doc}/core-doc and
-    #{doc}/feathers-doc respectively.
-    EOS
+  def install
+    args = std_cmake_args + %W{
+      -DCMAKE_INSTALL_PREFIX=#{prefix}
+      -DFALCON_BIN_DIR=#{bin}
+      -DFALCON_LIB_DIR=#{lib}
+      -DFALCON_MAN_DIR=#{man1}
+      -DFALCON_WITH_INTERNAL_PCRE=OFF
+      -DFALCON_WITH_MANPAGES=ON}
+
+    if build.include? 'editline'
+      args << "-DFALCON_WITH_EDITLINE=ON"
+    else
+      args << "-DFALCON_WITH_EDITLINE=OFF"
+    end
+
+    if build.include? 'feathers'
+      args << "-DFALCON_WITH_FEATHERS=feathers"
+    else
+      args << "-DFALCON_WITH_FEATHERS=NO"
+    end
+
+    system "cmake", *args
+    system "make"
+    system "make install"
   end
 end

@@ -1,22 +1,38 @@
 require 'formula'
 
-class Gtkx <Formula
-  url 'ftp://ftp.gnome.org/pub/gnome/sources/gtk+/2.20/gtk+-2.20.1.tar.bz2'
-  homepage 'http://www.gtk.org/'
-  sha256 '0e081731d21e34ff45c82199490c2889504fa8b3c7e117c043e82ababaec0f65'
+class Gtkx < Formula
+  homepage 'http://gtk.org/'
+  url 'http://ftp.gnome.org/pub/gnome/sources/gtk+/2.24/gtk+-2.24.11.tar.xz'
+  sha256 '328b4ea19a61040145e777e2ac49820968a382ac8581a380c9429897881812a9'
 
-  depends_on 'pkg-config'
+  depends_on 'pkg-config' => :build
+  depends_on 'xz' => :build
   depends_on 'glib'
   depends_on 'jpeg'
   depends_on 'libtiff'
+  depends_on 'gdk-pixbuf'
   depends_on 'pango'
   depends_on 'jasper' => :optional
   depends_on 'atk' => :optional
+  depends_on 'cairo'
+  depends_on :x11
+
+  fails_with :llvm do
+    build 2326
+    cause "Undefined symbols when linking"
+  end
 
   def install
-    system "./configure", "--disable-debug", "--disable-dependency-tracking",
+    system "./configure", "--disable-debug",
+                          "--disable-dependency-tracking",
                           "--prefix=#{prefix}",
-                          "--disable-glibtest"
+                          "--disable-glibtest",
+                          "--disable-introspection",
+                          "--disable-visibility"
     system "make install"
+  end
+
+  def test
+    system "#{bin}/gtk-demo"
   end
 end

@@ -1,16 +1,17 @@
 require 'formula'
 
-class Tarsnap <Formula
-  url 'https://www.tarsnap.com/download/tarsnap-autoconf-1.0.27.tgz'
+class Tarsnap < Formula
   homepage 'http://www.tarsnap.com/'
-  sha256 'e26dc7c2aa64c17d8063bc61462d1a0f546b56e33b41fbd2fd6925e506c6914f'
+  url 'https://www.tarsnap.com/download/tarsnap-autoconf-1.0.33.tgz'
+  sha256 '0c0d825a8c9695fc8d44c5d8c3cd17299c248377c9c7b91fdb49d73e54ae0b7d'
 
-  depends_on 'lzma' => :optional
+  depends_on 'xz' => :optional
 
   def install
-    system "./configure", "--disable-debug", "--disable-dependency-tracking",
+    system "./configure", "--disable-dependency-tracking",
+                          "--enable-sse2",
                           "--prefix=#{prefix}",
-                          "--enable-sse2"
+                          "--sysconfdir=#{etc}"
     system "make install"
   end
 end
